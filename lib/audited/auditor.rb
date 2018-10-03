@@ -149,7 +149,6 @@ module Audited
         end
         audit = audits.find_by(audit_version: version)
         revision_with Audited.audit_class.reconstruct_attributes(audit ? audit.descendents : [])
-        end
       end
 
       # Find the revision at the date/time provided.
