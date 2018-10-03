@@ -139,15 +139,23 @@ module Audited
       # Get a specific revision specified by the version number, or +:previous+
       # Returns nil for versions greater than revisions count
       def revision(version)
-        if version == :previous || self.audits.last.version >= version
-          revision_with Audited.audit_class.reconstruct_attributes(audits_to(version))
+        if version == :previous || self.audits.last.audit_version >= version
+          version = if self.audit_version
+                      self.audit_version - 1
+                    else
+                      previous = audits.descending.offset(1).first
+                      previous ? previous.version : 1
+                    end
+        end
+        audit = audits.find_by(audit_version: version)
+        revision_with Audited.audit_class.reconstruct_attributes(audit ? audit.descendents : [])
         end
       end
 
-      # Find the oldest revision recorded prior to the date/time provided.
+      # Find the revision at the date/time provided.
       def revision_at(date_or_time)
-        audits = self.audits.up_until(date_or_time)
-        revision_with Audited.audit_class.reconstruct_attributes(audits) unless audits.empty?
+        audit = self.audits.ascending.up_until(date_or_time).last || self.audits.descending.down_until(date_or_time).first
+        revision_with Audited.audit_class.reconstruct_attributes(audit ? audit.descendents : [])
       end
 
       # List of attributes that are audited.
@@ -236,18 +244,6 @@ module Audited
 
       def rails_below?(rails_version)
         Gem::Version.new(Rails::VERSION::STRING) < Gem::Version.new(rails_version)
-      end
-
-      def audits_to(version = nil)
-        if version == :previous
-          version = if self.audit_version
-                      self.audit_version - 1
-                    else
-                      previous = audits.descending.offset(1).first
-                      previous ? previous.version : 1
-                    end
-        end
-        audits.to_version(version)
       end
 
       def audit_create
