@@ -1,9 +1,9 @@
-Audited [![Build Status](https://secure.travis-ci.org/collectiveidea/audited.svg)](http://travis-ci.org/collectiveidea/audited) [![Dependency Status](https://gemnasium.com/collectiveidea/audited.svg)](https://gemnasium.com/collectiveidea/audited)[![Code Climate](https://codeclimate.com/github/collectiveidea/audited.svg)](https://codeclimate.com/github/collectiveidea/audited) [![Security](https://hakiri.io/github/collectiveidea/audited/master.svg)](https://hakiri.io/github/collectiveidea/audited/master)
+Audited [![Build Status](https://secure.travis-ci.org/collectiveidea/audited.svg)](http://travis-ci.org/collectiveidea/audited) [![Code Climate](https://codeclimate.com/github/collectiveidea/audited.svg)](https://codeclimate.com/github/collectiveidea/audited) [![Security](https://hakiri.io/github/collectiveidea/audited/master.svg)](https://hakiri.io/github/collectiveidea/audited/master)
 =======
 
 **Audited** (previously acts_as_audited) is an ORM extension that logs all changes to your models. Audited can also record who made those changes, save comments and associate models related to the changes.
 
-Audited currently (4.x) works with Rails 5.2, 5.1, 5.0 and 4.2. It may work with 4.1 and 4.0, but this is not guaranteed.
+Audited currently (4.x) works with Rails 6.0, 5.2, 5.1, 5.0 and 4.2.
 
 For Rails 3, use gem version 3.0 or see the [3.0-stable branch](https://github.com/collectiveidea/audited/tree/3.0-stable).
 
@@ -11,11 +11,9 @@ For Rails 3, use gem version 3.0 or see the [3.0-stable branch](https://github.c
 
 Audited supports and is [tested against](http://travis-ci.org/collectiveidea/audited) the following Ruby versions:
 
-* 2.1.10
-* 2.2.9
-* 2.3.6
-* 2.4.3
-* 2.5.0
+* 2.3.7
+* 2.4.4
+* 2.5.1
 
 Audited may work just fine with a Ruby version not listed above, but we can't guarantee that it will. If you'd like to maintain a Ruby that isn't listed, please let us know with a [pull request](https://github.com/collectiveidea/audited/pulls).
 
@@ -67,7 +65,7 @@ By default, whenever a user is created, updated or destroyed, a new audit is cre
 ```ruby
 user = User.create!(name: "Steve")
 user.audits.count # => 1
-user.update_attributes!(name: "Ryan")
+user.update!(name: "Ryan")
 user.audits.count # => 2
 user.destroy
 user.audits.count # => 3
@@ -76,7 +74,7 @@ user.audits.count # => 3
 Audits contain information regarding what action was taken on the model and what changes were made.
 
 ```ruby
-user.update_attributes!(name: "Ryan")
+user.update!(name: "Ryan")
 audit = user.audits.last
 audit.action # => "update"
 audit.audited_changes # => {"name"=>["Steve", "Ryan"]}
@@ -130,7 +128,7 @@ end
 You can attach comments to each audit using an `audit_comment` attribute on your model.
 
 ```ruby
-user.update_attributes!(name: "Ryan", audit_comment: "Changing name, just because")
+user.update!(name: "Ryan", audit_comment: "Changing name, just because")
 user.audits.last.comment # => "Changing name, just because"
 ```
 
@@ -139,6 +137,14 @@ You can optionally add the `:comment_required` option to your `audited` call to 
 ```ruby
 class User < ActiveRecord::Base
   audited :comment_required => true
+end
+```
+
+You can update an audit if only audit_comment is present. You can optionally add the `:update_with_comment_only` option set to `false` to your `audited` call to turn this behavior off for all audits.
+
+```ruby
+class User < ActiveRecord::Base
+  audited :update_with_comment_only => false
 end
 ```
 
@@ -163,7 +169,7 @@ Whenever an object is updated or destroyed, extra audits are combined with newer
 ```ruby
 user = User.create!(name: "Steve")
 user.audits.count # => 1
-user.update_attributes!(name: "Ryan")
+user.update!(name: "Ryan")
 user.audits.count # => 2
 user.destroy
 user.audits.count # => 2
@@ -193,7 +199,7 @@ Outside of a request, Audited can still record the user with the `as_user` metho
 
 ```ruby
 Audited.audit_class.as_user(User.find(1)) do
-  post.update_attribute!(title: "Hello, world!")
+  post.update!(title: "Hello, world!")
 end
 post.audits.last.user # => #<User id: 1>
 ```
@@ -250,9 +256,14 @@ Now, when an audit is created for a user, that user's company is also saved alon
 ```ruby
 company = Company.create!(name: "Collective Idea")
 user = company.users.create!(name: "Steve")
-user.update_attribute!(name: "Steve Richert")
+user.update!(name: "Steve Richert")
 user.audits.last.associated # => #<Company name: "Collective Idea">
 company.associated_audits.last.auditable # => #<User name: "Steve Richert">
+```
+
+You can access records' own audits and associated audits in one go:
+```ruby
+company.own_and_associated_audits
 ```
 
 ### Conditional auditing
@@ -310,6 +321,12 @@ To disable auditing on an entire model:
 
 ```ruby
 User.auditing_enabled = false
+```
+
+To disable auditing on all models:
+
+```ruby
+Audited.auditing_enabled = false
 ```
 
 ### Custom `Audit` model

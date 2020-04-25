@@ -16,7 +16,7 @@ Changed
 
 Fixed
 
-- None 
+- None
 
 ## 4.7.1 (2018-04-10)
 
@@ -34,7 +34,8 @@ Changed
 
 Fixed
 
-- Allow use with Rails 5.2 final
+- Support for Rails 6.0 and Ruby 2.6
+  [#494](https://github.com/collectiveidea/audited/pull/494)
 
 ## 4.7.0 (2018-03-14)
 
