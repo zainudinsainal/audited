@@ -16,7 +16,7 @@ module Audited
   class YAMLIfTextColumnType
     class << self
       def load(obj)
-        if Audited.audit_class.columns_hash["audited_changes"].type.to_s == "text"
+        if text_column?
           ActiveRecord::Coders::YAMLColumn.new(Object).load(obj)
         else
           obj
@@ -24,11 +24,15 @@ module Audited
       end
 
       def dump(obj)
-        if Audited.audit_class.columns_hash["audited_changes"].type.to_s == "text"
+        if text_column?
           ActiveRecord::Coders::YAMLColumn.new(Object).dump(obj)
         else
           obj
         end
+      end
+
+      def text_column?
+        Audited.audit_class.columns_hash["audited_changes"].type.to_s == "text"
       end
     end
   end
@@ -178,8 +182,13 @@ module Audited
     private
 
     def set_version_number
-      max = self.class.auditable_finder(auditable_id, auditable_type).descending.first.try(:version) || 0
-      self.version = max + 1
+      if action == 'create'
+        self.version = 1
+      else
+        collection = Rails::VERSION::MAJOR == 6 ? self.class.unscoped : self.class
+        max = collection.auditable_finder(auditable_id, auditable_type).descending.first.try(:version) || 0
+        self.version = max + 1
+      end
     end
 
     def set_audit_user
