@@ -54,7 +54,7 @@ module Audited
         include Audited::Auditor::AuditedInstanceMethods
 
         class_attribute :audit_associated_with, instance_writer: false
-        class_attribute :audited_options,       instance_writer: false
+        class_attribute :audited_options, instance_writer: false
         attr_accessor :version, :audit_comment
 
         self.audited_options = options
@@ -70,8 +70,8 @@ module Audited
         has_many :audits, -> { order(version: :asc) }, as: :auditable, class_name: Audited.audit_class.name, inverse_of: :auditable
         Audited.audit_class.audited_class_names << to_s
 
-        after_create :audit_create    if audited_options[:on].include?(:create)
-        before_update :audit_update   if audited_options[:on].include?(:update)
+        after_create :audit_create if audited_options[:on].include?(:create)
+        before_update :audit_update if audited_options[:on].include?(:update)
         before_destroy :audit_destroy if audited_options[:on].include?(:destroy)
 
         # Define and set after_audit and around_audit callbacks. This might be useful if you want
@@ -115,7 +115,7 @@ module Audited
       def revisions(from_version = 1)
         return [] unless audits.from_version(from_version).exists?
 
-        all_audits = audits.select([:audited_changes, :version]).to_a
+        all_audits = audits.select([:audited_changes, :version, :action]).to_a
         targeted_audits = all_audits.select { |audit| audit.version >= from_version }
 
         previous_attributes = reconstruct_attributes(all_audits - targeted_audits)
@@ -179,7 +179,6 @@ module Audited
       def revision_with(attributes)
         dup.tap do |revision|
           revision.id = id
-          revision.send :instance_variable_set, '@attributes', self.attributes if rails_below?('4.2.0')
           revision.send :instance_variable_set, '@new_record', destroyed?
           revision.send :instance_variable_set, '@persisted', !destroyed?
           revision.send :instance_variable_set, '@readonly', false
@@ -200,10 +199,6 @@ module Audited
             end
           end
         end
-      end
-
-      def rails_below?(rails_version)
-        Gem::Version.new(Rails::VERSION::STRING) < Gem::Version.new(rails_version)
       end
 
       private
@@ -230,15 +225,18 @@ module Audited
       end
 
       def audit_destroy
-        write_audit(action: 'destroy', audited_changes: audited_attributes,
-                    comment: audit_comment) unless new_record?
+        unless new_record?
+          write_audit(action: 'destroy', audited_changes: audited_attributes,
+                      comment: audit_comment)
+        end
       end
 
       def write_audit(attrs)
-        attrs[:associated] = send(audit_associated_with) unless audit_associated_with.nil?
         self.audit_comment = nil
 
         if auditing_enabled
+          attrs[:associated] = send(audit_associated_with) unless audit_associated_with.nil?
+
           run_callbacks(:audit) {
             audit = audits.create(attrs)
             combine_audits_if_needed if attrs[:action] != 'create'
@@ -249,14 +247,15 @@ module Audited
 
       def presence_of_audit_comment
         if comment_required_state?
-          errors.add(:audit_comment, "Comment can't be blank!") unless audit_comment.present?
+          errors.add(:audit_comment, :blank) unless audit_comment.present?
         end
       end
 
       def comment_required_state?
         auditing_enabled &&
-          ((audited_options[:on].include?(:create) && self.new_record?) ||
-          (audited_options[:on].include?(:update) && self.persisted? && self.changed?))
+          audited_changes.present? &&
+          ((audited_options[:on].include?(:create) && new_record?) ||
+          (audited_options[:on].include?(:update) && persisted? && changed?))
       end
 
       def combine_audits_if_needed
@@ -269,8 +268,7 @@ module Audited
 
       def require_comment
         if auditing_enabled && audit_comment.blank?
-          errors.add(:audit_comment, "Comment can't be blank!")
-          return false if Rails.version.start_with?('4.')
+          errors.add(:audit_comment, :blank)
           throw(:abort)
         end
       end
@@ -280,16 +278,15 @@ module Audited
       end
 
       def auditing_enabled
-        return run_conditional_check(audited_options[:if]) &&
+        run_conditional_check(audited_options[:if]) &&
           run_conditional_check(audited_options[:unless], matching: false) &&
           self.class.auditing_enabled
       end
 
       def run_conditional_check(condition, matching: true)
         return true if condition.blank?
-
         return condition.call(self) == matching if condition.respond_to?(:call)
-        return send(condition) == matching if respond_to?(condition.to_sym)
+        return send(condition) == matching if respond_to?(condition.to_sym, true)
 
         true
       end
@@ -303,7 +300,7 @@ module Audited
         audits.each { |audit| attributes.merge!(audit.new_attributes) }
         attributes
       end
-    end # InstanceMethods
+    end
 
     module AuditedClassMethods
       # Returns an array of columns that are audited. See non_audited_columns

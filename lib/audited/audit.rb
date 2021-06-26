@@ -38,8 +38,8 @@ module Audited
   end
 
   class Audit < ::ActiveRecord::Base
-    belongs_to :auditable,  polymorphic: true
-    belongs_to :user,       polymorphic: true
+    belongs_to :auditable, polymorphic: true
+    belongs_to :user, polymorphic: true
     belongs_to :associated, polymorphic: true
 
     before_create :set_version_number, :set_audit_user, :set_request_uuid, :set_remote_address
@@ -82,37 +82,32 @@ module Audited
 
     # Returns a hash of the changed attributes with the new values
     def new_attributes
-      (audited_changes || {}).inject({}.with_indifferent_access) do |attrs, (attr, values)|
-        attrs[attr] = values.is_a?(Array) ? values.last : values
-        attrs
+      (audited_changes || {}).each_with_object({}.with_indifferent_access) do |(attr, values), attrs|
+        attrs[attr] = (action == "update" ? values.last : values)
       end
     end
 
     # Returns a hash of the changed attributes with the old values
     def old_attributes
-      (audited_changes || {}).inject({}.with_indifferent_access) do |attrs, (attr, values)|
-        attrs[attr] = values.is_a?(Array) ? values.first : values
-
-        attrs
+      (audited_changes || {}).each_with_object({}.with_indifferent_access) do |(attr, values), attrs|
+        attrs[attr] = (action == "update" ? values.first : values)
       end
     end
 
     # Allows user to undo changes
     def undo
-      model = self.auditable_type.constantize
-      if action == 'create'
+      case action
+      when 'create'
         # destroys a newly created record
-        model.find(auditable_id).destroy!
-      elsif action == 'destroy'
+        auditable.destroy!
+      when 'destroy'
         # creates a new record with the destroyed record attributes
-        model.create(audited_changes)
-      else
+        auditable_type.constantize.create!(audited_changes)
+      when 'update'
         # changes back attributes
-        audited_object = model.find(auditable_id)
-        self.audited_changes.each do |k, v|
-          audited_object[k] = v[0]
-        end
-        audited_object.save
+        auditable.update!(audited_changes.transform_values(&:first))
+      else
+        raise StandardError, "invalid action given #{action}"
       end
     end
 
@@ -143,11 +138,12 @@ module Audited
     # All audits made during the block called will be recorded as made
     # by +user+. This method is hopefully threadsafe, making it ideal
     # for background operations that require audit information.
-    def self.as_user(user, &block)
+    def self.as_user(user)
+      last_audited_user = ::Audited.store[:audited_user]
       ::Audited.store[:audited_user] = user
       yield
     ensure
-      ::Audited.store[:audited_user] = nil
+      ::Audited.store[:audited_user] = last_audited_user
     end
 
     # @private
@@ -175,7 +171,7 @@ module Audited
     end
 
     # use created_at as timestamp cache key
-    def self.collection_cache_key(collection = all, timestamp_column = :created_at)
+    def self.collection_cache_key(collection = all, *)
       super(collection, :created_at)
     end
 
@@ -185,7 +181,7 @@ module Audited
       if action == 'create'
         self.version = 1
       else
-        collection = Rails::VERSION::MAJOR == 6 ? self.class.unscoped : self.class
+        collection = Rails::VERSION::MAJOR >= 6 ? self.class.unscoped : self.class
         max = collection.auditable_finder(auditable_id, auditable_type).descending.first.try(:version) || 0
         self.version = max + 1
       end

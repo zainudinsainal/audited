@@ -324,7 +324,7 @@ describe Audited::Auditor do
     end
 
     it "should not save an audit if the value doesn't change after type casting" do
-      @user.update!! logins: 0, activated: true
+      @user.update! logins: 0, activated: true
       expect { @user.update_attribute :logins, '0' }.to_not change( Audited::Audit, :count )
       expect { @user.update_attribute :activated, 1 }.to_not change( Audited::Audit, :count )
       expect { @user.update_attribute :activated, '1' }.to_not change( Audited::Audit, :count )
@@ -751,6 +751,10 @@ describe Audited::Auditor do
         expect(Models::ActiveRecord::CommentRequiredUser.create(name: 'Foo')).to be_valid
         Models::ActiveRecord::CommentRequiredUser.enable_auditing
       end
+
+      it "should validate when audit_comment is not supplied, and only excluded attributes changed" do
+        expect(Models::ActiveRecord::CommentRequiredUser.new(password: 'Foo')).to be_valid
+      end
     end
 
     describe "on update" do
@@ -759,7 +763,7 @@ describe Audited::Auditor do
       let( :on_destroy_user ) { Models::ActiveRecord::OnDestroyCommentRequiredUser.create }
 
       it "should not validate when audit_comment is not supplied" do
-        expect(user.update!(name: 'Test')).to eq(false)
+        expect(user.update(name: 'Test')).to eq(false)
       end
 
       it "should validate when audit_comment is not supplied, and updating is not being audited" do
@@ -775,6 +779,10 @@ describe Audited::Auditor do
         Models::ActiveRecord::CommentRequiredUser.disable_auditing
         expect(user.update!(name: 'Test')).to eq(true)
         Models::ActiveRecord::CommentRequiredUser.enable_auditing
+      end
+
+      it "should validate when audit_comment is not supplied, and only excluded attributes changed" do
+        expect(user.update(password: 'Test')).to eq(true)
       end
     end
 

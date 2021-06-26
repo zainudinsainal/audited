@@ -10,7 +10,13 @@ module Audited
     end
 
     def store
-      Thread.current[:audited_store] ||= {}
+      current_store_value = Thread.current.thread_variable_get(:audited_store)
+
+      if current_store_value.nil?
+        Thread.current.thread_variable_set(:audited_store, {})
+      else
+        current_store_value
+      end
     end
 
     def config
@@ -26,6 +32,9 @@ end
 require 'audited/auditor'
 require 'audited/audit'
 
-::ActiveRecord::Base.send :include, Audited::Auditor
+ActiveSupport.on_load :active_record do
+  include Audited::Auditor
+end
 
 require 'audited/sweeper'
+require 'audited/railtie'

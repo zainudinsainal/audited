@@ -1,7 +1,4 @@
 require "spec_helper"
-
-SingleCov.covered! uncovered: 2 # 2 conditional on_load conditions
-
 class AuditsController < ActionController::Base
   before_action :populate_user
 
@@ -30,6 +27,7 @@ describe AuditsController do
   render_views
 
   before do
+    Audited::Railtie.initializers.each(&:run)
     Audited.current_user_method = :current_user
   end
 
@@ -92,7 +90,7 @@ describe AuditsController do
       controller.send(:current_user=, user)
 
       expect {
-        put :update, Rails::VERSION::MAJOR == 4 ? {id: 123} : {params: {id: 123}}
+        put :update, params: {id: 123}
       }.to_not change( Audited::Audit, :count )
     end
   end

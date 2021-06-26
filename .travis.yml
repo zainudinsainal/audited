@@ -1,10 +1,12 @@
 language: ruby
 cache: bundler
 rvm:
-  - 2.3.7
-  - 2.4.4
-  - 2.5.1
-  - 2.6.3
+  - 2.3.8
+  - 2.4.10
+  - 2.5.9
+  - 2.6.7
+  - 2.7.3
+  - 3.0.1
   - ruby-head
 env:
   - DB=SQLITE
@@ -17,15 +19,7 @@ services:
 before_install:
   # https://github.com/travis-ci/travis-ci/issues/8978
   - "travis_retry gem update --system"
-  # Rails 4.2 has a bundler 1.x requirement
-  - if [ $BUNDLE_GEMFILE = $PWD/gemfiles/rails42.gemfile ]; then
-      travis_retry gem install -v '1.17.3' bundler;
-      bundle _1.17.3_ install;
-    else
-      travis_retry gem install bundler;
-    fi
 gemfile:
-  - gemfiles/rails42.gemfile
   - gemfiles/rails50.gemfile
   - gemfiles/rails51.gemfile
   - gemfiles/rails52.gemfile
@@ -33,20 +27,30 @@ gemfile:
   - gemfiles/rails61.gemfile
 matrix:
   include:
-    - rvm: 2.6.3
+    - rvm: 2.6.7
       script: bundle exec rubocop --parallel
       env: DB=rubocop # make travis build display nicer
   exclude:
-    - rvm: 2.3.7
+    - rvm: 2.3.8
       gemfile: gemfiles/rails61.gemfile
-    - rvm: 2.4.4
+    - rvm: 2.4.10
       gemfile: gemfiles/rails61.gemfile
-    - rvm: 2.3.7
+    - rvm: 2.3.8
       gemfile: gemfiles/rails60.gemfile
-    - rvm: 2.4.4
+    - rvm: 2.4.10
       gemfile: gemfiles/rails60.gemfile
-    - rvm: 2.6.3
+    - rvm: 2.6.7
       gemfile: gemfiles/rails42.gemfile
+    - rvm: 2.7.3
+      gemfile: gemfiles/rails42.gemfile
+    - rvm: 3.0.1
+      gemfile: gemfiles/rails42.gemfile
+    - rvm: 3.0.1
+      gemfile: gemfiles/rails50.gemfile
+    - rvm: 3.0.1
+      gemfile: gemfiles/rails51.gemfile
+    - rvm: 3.0.1
+      gemfile: gemfiles/rails52.gemfile
     - rvm: ruby-head
       gemfile: gemfiles/rails42.gemfile
   allow_failures:
@@ -59,5 +63,5 @@ branches:
 notifications:
   webhooks:
     urls:
-    - http://buildlight.collectiveidea.com/
+    - https://buildlight.collectiveidea.com/
     on_start: always
