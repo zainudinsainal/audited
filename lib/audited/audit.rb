@@ -185,7 +185,7 @@ module Audited
       if action == 'create'
         self.version = 1
       else
-        collection = Rails::VERSION::MAJOR == 6 ? self.class.unscoped : self.class
+        collection = Rails::VERSION::MAJOR >= 6 ? self.class.unscoped : self.class
         max = collection.auditable_finder(auditable_id, auditable_type).descending.first.try(:version) || 0
         self.version = max + 1
       end
