@@ -1,7 +1,5 @@
 require "spec_helper"
 
-SingleCov.covered! uncovered: 2 # 2 conditional on_load conditions
-
 class AuditsController < ActionController::Base
   before_action :populate_user
 

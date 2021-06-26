@@ -324,7 +324,7 @@ describe Audited::Auditor do
     end
 
     it "should not save an audit if the value doesn't change after type casting" do
-      @user.update!! logins: 0, activated: true
+      @user.update! logins: 0, activated: true
       expect { @user.update_attribute :logins, '0' }.to_not change( Audited::Audit, :count )
       expect { @user.update_attribute :activated, 1 }.to_not change( Audited::Audit, :count )
       expect { @user.update_attribute :activated, '1' }.to_not change( Audited::Audit, :count )
